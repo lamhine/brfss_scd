@@ -1,13 +1,31 @@
 # config.R
-# Purpose: Define user-specific settings for file paths and directories
+# Purpose: Automatically set up data storage location
 
-# Define the directory where BRFSS data files are stored
-# Users should update this path to match their local setup
+# Attempt to detect the repository folder
+repo_root <- tryCatch(getwd(), error = function(e) NULL)
 
-data_dir <- "/Users/USERNAME/Drive/BRFSS/Data"  # Example for Mac
-# data_dir <- "C:/Users/USERNAME/Drive/BRFSS/Data"  # Example for Windows
+# Default: Store data inside a 'data/' folder in the same directory as the scripts
+data_dir <- file.path(repo_root, "data")
 
-# Ensure the directory exists, stop if not found
+# Create 'data/' folder if it doesn't exist
 if (!dir.exists(data_dir)) {
-  stop("ERROR: The data directory does not exist. Update 'config.R' with the correct path.")
+  dir.create(data_dir, recursive = TRUE)
+  message("Created missing data directory: ", data_dir)
 }
+
+# Final check: If the directory still doesn’t exist, ask the user to provide a path
+while (!dir.exists(data_dir)) {
+  message("Could not find a valid data directory.")
+  data_dir <- readline(prompt = "Enter the full path where your BRFSS data is stored: ")
+
+  # Ensure the directory is valid before proceeding
+  if (!dir.exists(data_dir)) {
+    message("Invalid directory. Please try again.")
+  } else {
+    message("Data directory set to: ", data_dir)
+    break
+  }
+}
+
+# Confirm the directory is set correctly
+message("Using data directory: ", data_dir)
