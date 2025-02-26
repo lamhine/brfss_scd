@@ -1,4 +1,4 @@
-# brfss-scd
+# brfss_scd README
 Prevalence of Subjective Decline, 2019-2023
 
 Zipped folders containing SAS-format files for this analysis are available from cdc.gov at the following links: 
