@@ -2,7 +2,7 @@
 
 ## Prevalence of Subjective Cognitive Decline (SCD), 2019-2023
 
-This repository contains the analysis code for estimating the prevalence of Subjective Cognitive Decline (SCD) using BRFSS data from 2019-2023. The analysis incorporates survey weighting, imputation, and stratification by race/ethnicity.
+This repository contains code for estimating the prevalence of Subjective Cognitive Decline (SCD) using BRFSS data from 2019-2023. The analysis incorporates survey weighting, imputation, and stratification by race/ethnicity.
 
 ### **Data Availability**
 
