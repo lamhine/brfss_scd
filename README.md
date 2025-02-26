@@ -1,30 +1,46 @@
 # brfss_scd README
-Prevalence of Subjective Decline, 2019-2023
 
-Zipped folders containing SAS-format files for this analysis are available from cdc.gov at the following links: 
+## Prevalence of Subjective Cognitive Decline (SCD), 2019-2023
 
-- 2023
-  * https://www.cdc.gov/brfss/annual_data/2023/files/LLCP2023XPT.zip
-  * https://www.cdc.gov/brfss/annual_data/2023/files/LLCP23V1_XPT.ZIP
-  * https://www.cdc.gov/brfss/annual_data/2023/files/LLCP23V2_XPT.ZIP
-  * https://www.cdc.gov/brfss/annual_data/2023/files/LLCP23V3_XPT.ZIP
-- 2022
-  * https://www.cdc.gov/brfss/annual_data/2022/files/LLCP2022XPT.zip
-  * https://www.cdc.gov/brfss/annual_data/2022/files/LLCP22V1_XPT.ZIP
-  * https://www.cdc.gov/brfss/annual_data/2022/files/LLCP22V2_XPT.ZIP
-  * https://www.cdc.gov/brfss/annual_data/2022/files/LLCP22V3_XPT.ZIP
-- 2021
-  * https://www.cdc.gov/brfss/annual_data/2021/files/LLCP2021XPT.zip
-  * https://www.cdc.gov/brfss/annual_data/2021/files/LLCP21V1_XPT.ZIP
-  * https://www.cdc.gov/brfss/annual_data/2021/files/LLCP21V2_XPT.ZIP
-  * https://www.cdc.gov/brfss/annual_data/2021/files/LLCP21V3_XPT.ZIP
-- 2020
-  * https://www.cdc.gov/brfss/annual_data/2020/files/LLCP2020XPT.zip
-  * https://www.cdc.gov/brfss/annual_data/2020/files/LLCP20V1_XPT.ZIP
-  * https://www.cdc.gov/brfss/annual_data/2020/files/LLCP20V2_XPT.ZIP
-  * https://www.cdc.gov/brfss/annual_data/2020/files/LLCP20V3_XPT.ZIP
-- 2019
-  * https://www.cdc.gov/brfss/annual_data/2019/files/LLCP2019XPT.zip
-  * https://www.cdc.gov/brfss/annual_data/2019/files/LLCP19V1_XPT.zip
-  * https://www.cdc.gov/brfss/annual_data/2019/files/LLCP19V2_XPT.zip
-  * https://www.cdc.gov/brfss/annual_data/2019/files/LLCP19V3_XPT.zip
+This repository contains the analysis code for estimating the prevalence of Subjective Cognitive Decline (SCD) using BRFSS data from 2019-2023. The analysis incorporates survey weighting, imputation, and stratification by race/ethnicity.
+
+### **Data Availability**
+
+Zipped folders containing SAS-format `.XPT` files for this analysis are available from the **CDC BRFSS website**. To keep this repository lightweight, we do **not** store large datasets here.
+
+To download the necessary BRFSS datasets, please refer to [`data_links.txt`](data_links.txt), which contains a full list of download links from the CDC.
+
+### **Setup Instructions**
+
+1. **Download this repository**
+```sh
+git clone https://github.com/lamhine/brfss_scd.git
+cd brfss_scd
+```
+Or download the ZIP manually from GitHub and extract it to a local folder.
+
+2. **Download BRFSS data** from the CDC using the links in [`data_links.txt`](data_links.txt).
+   - Extract the `.XPT` files and place them inside the `data/` folder inside this repository.
+
+3. **Open the RStudio Project (`brfss_scd.Rproj`)**.
+
+4. **Run the analysis pipeline in R:**
+```r
+source("01_load_data.R")    # Loads raw BRFSS data
+source("02_clean_data.R")   # Cleans and preprocesses data
+source("03_impute_data.R")  # Handles missing data
+source("04_analyze_data.R") # Runs analysis and estimates prevalence
+source("05_visualize_results.R") # Generates plots
+```
+
+### **Outputs**
+- `BRFSS_Raw.rds` → Raw combined dataset (01_load_data.R)
+- `BRFSS_Cleaned.rds` → Cleaned dataset (02_clean_data.R)
+- Tables & figures → From 04_analyze_data.R & 05_visualize_results.R
+
+### **Troubleshooting**
+- **Missing BRFSS files?** Ensure `.XPT` files are inside `data/`.
+- **`config.R` errors?** Ensure `data_dir` is correctly set to your BRFSS data folder.
+- **Working directory errors?** Always open the `.Rproj` file before running scripts.
+
+For questions, open an issue on GitHub.
