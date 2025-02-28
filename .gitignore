@@ -1,3 +1,6 @@
+# Ignore config.R
+config.R
+
 # Ignore all data files in "data" folder
 data/*
 
@@ -14,3 +17,4 @@ data/*
 # Ignore extracted `.XPT` files and temporary processing directories
 unzipped/
 *.XPT
+.Rproj.user
