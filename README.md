@@ -6,9 +6,7 @@ This repository contains code for estimating the prevalence of Subjective Cognit
 
 ### **Data Availability**
 
-Zipped folders containing SAS-format `.XPT` files for this analysis are available from the **CDC BRFSS website**. To keep this repository lightweight, we do **not** store large datasets here.
-
-To download the necessary BRFSS datasets, please refer to [`data_links.txt`](data_links.txt), which contains a full list of download links from the CDC.
+Zipped folders containing SAS-format `.XPT` files for this analysis are available from the **CDC BRFSS website**. To download the necessary BRFSS datasets, please refer to [`data_links.txt`](data_links.txt), which contains a full list of download links from the CDC.
 
 ### **Setup Instructions**
 
@@ -28,7 +26,7 @@ Or download the ZIP manually from GitHub and extract it to a local folder.
 ```r
 source("01_load_data.R")    # Loads raw BRFSS data
 source("02_clean_data.R")   # Cleans and preprocesses data
-source("03_impute_data.R")  # Handles missing data
+source("03_multiple_imputation.R")  # Handles missing data
 source("04_analyze_data.R") # Runs analysis and estimates prevalence
 source("05_visualize_results.R") # Generates plots
 ```
