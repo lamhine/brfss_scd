@@ -32,6 +32,12 @@ survey_designs <- lapply(imputed_data, function(data) {
   )
 })
 
+# Remove unused factor levels in AGEG5YR
+survey_designs <- lapply(survey_designs, function(design) {
+  design$variables$AGEG5YR <- droplevels(design$variables$AGEG5YR)
+  design
+})
+
 ## SAMPLE SIZE CALCULATIONS ##
 calculate_sample_sizes_unweighted <- function(design) {
   design$variables %>%
