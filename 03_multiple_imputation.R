@@ -44,7 +44,7 @@ predictor_matrix <- quickpred(df_subset)
 plan(multisession)
 
 # Run multiple imputations (m = 5 for testing, increase to m = 20 for final)
-imp <- mice(df_subset, m = 5, maxit = 10, seed = 500, method = methods, predictorMatrix = predictor_matrix)
+imp <- mice(df_subset, m = 20, maxit = 20, seed = 500, method = methods, predictorMatrix = predictor_matrix)
 
 # Extract completed datasets from the imputation object
 imputed_data <- complete(imp, action = "all") 

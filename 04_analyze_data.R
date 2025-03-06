@@ -24,6 +24,7 @@ options(survey.lonely.psu = "adjust")
 
 # Create survey design objects for each imputed dataset
 survey_designs <- lapply(imputed_data, function(data) {
+  data <- data %>% mutate(MEMLOSS = as.numeric(MEMLOSS == "Yes"))  # Ensure correct coding
   svydesign(
     id = ~1,
     strata = ~STSTR,
@@ -32,23 +33,11 @@ survey_designs <- lapply(imputed_data, function(data) {
   )
 })
 
-# Remove unused factor levels in AGEG5YR
-survey_designs <- lapply(survey_designs, function(design) {
-  design$variables$AGEG5YR <- droplevels(design$variables$AGEG5YR)
-  design
-})
-
 ## SAMPLE SIZE CALCULATIONS ##
 calculate_sample_sizes_unweighted <- function(design) {
   design$variables %>%
     group_by(RACE) %>%
-    summarize(N = n(), .groups = "drop") %>%
-    mutate(RACE = recode(
-      RACE,
-      "1" = "White", "2" = "Black", "3" = "AIAN", 
-      "4" = "Asian", "5" = "NHPI", "6" = "Other", 
-      "7" = "Multiracial", "8" = "Hispanic"
-    ))
+    summarize(N = n(), .groups = "drop")
 }
 
 combine_sample_sizes <- function(survey_designs) {
@@ -65,23 +54,17 @@ overall_N <- sum(sample_sizes$N, na.rm = TRUE)
 ## PREVALENCE CALCULATIONS ##
 calculate_crude_prevalence <- function(design) {
   by_race <- svyby(
-    ~as.numeric(MEMLOSS == "1"),
+    ~MEMLOSS,
     ~RACE,
     design = design,
     svymean,
     na.rm = TRUE
   ) %>%
     as_tibble() %>%
-    rename(weighted_prevalence = `as.numeric(MEMLOSS == "1")`, se = se) %>%
-    mutate(RACE = recode(
-      RACE,
-      "1" = "White", "2" = "Black", "3" = "AIAN", 
-      "4" = "Asian", "5" = "NHPI", "6" = "Other", 
-      "7" = "Multiracial", "8" = "Hispanic"
-    ))
+    rename(weighted_prevalence = MEMLOSS, se = se)
   
   overall <- svymean(
-    ~as.numeric(MEMLOSS == "1"),
+    ~MEMLOSS,
     design,
     na.rm = TRUE
   )
@@ -97,42 +80,37 @@ calculate_crude_prevalence <- function(design) {
 }
 
 calculate_adjusted_prevalence <- function(design) {
-  formula <- as.formula("as.numeric(MEMLOSS == '1') ~ RACE + AGEG5YR + SEXVAR")
+  formula <- as.formula("MEMLOSS ~ RACE + AGEG5YR + SEXVAR")
   fit <- svyglm(formula, design = design, family = quasibinomial())
   
-  newdata <- tibble(
-    RACE = factor(levels(design$variables$RACE), levels = levels(design$variables$RACE)),
-    AGEG5YR = factor(rep(levels(design$variables$AGEG5YR)[1], length(levels(design$variables$RACE))),
-                     levels = levels(design$variables$AGEG5YR)),
-    SEXVAR = factor(rep(levels(design$variables$SEXVAR)[1], length(levels(design$variables$RACE))),
-                    levels = levels(design$variables$SEXVAR))
+  print(summary(fit))  # Check model convergence
+  
+  # Extract factor levels
+  race_levels <- levels(design$variables$RACE)
+  age_ref <- levels(design$variables$AGEG5YR)[1]  # Reference category for age
+  sex_ref <- levels(design$variables$SEXVAR)[1]  # Reference category for sex
+  
+  newdata <- expand_grid(
+    RACE = factor(race_levels, levels = race_levels),
+    AGEG5YR = factor(age_ref, levels = levels(design$variables$AGEG5YR)),
+    SEXVAR = factor(sex_ref, levels = levels(design$variables$SEXVAR))
   )
   
+  print(newdata)  # Verify structure of prediction data
+  
+  # Run predictions
   predicted_prevalence <- predict(fit, newdata = newdata, type = "response", se.fit = TRUE)
   
-  by_race <- tibble(
-    RACE = recode(
-      levels(design$variables$RACE),
-      "1" = "White", "2" = "Black", "3" = "AIAN", 
-      "4" = "Asian", "5" = "NHPI", "6" = "Other", 
-      "7" = "Multiracial", "8" = "Hispanic"
-    ),
-    weighted_prevalence = as.numeric(predicted_prevalence),
-    se = sqrt(attr(predicted_prevalence, "var"))
-  )
+  # Extract standard errors correctly
+  fit_values <- as.numeric(predicted_prevalence)  # Extract predicted values
+  se_values <- sqrt(attr(predicted_prevalence, "var"))  # Extract standard errors
   
-  overall <- tibble(
-    RACE = "Overall",
-    weighted_prevalence = mean(by_race$weighted_prevalence),
-    se = sqrt(sum(by_race$se^2) / nrow(by_race))
-  )
-  
-  bind_rows(by_race, overall) %>%
-    mutate(
-      lower_ci = pmax(0, weighted_prevalence - 1.96 * se),
-      upper_ci = pmin(1, weighted_prevalence + 1.96 * se),
-      type = "Adjusted"
-    )
+  tibble(
+    RACE = race_levels,
+    weighted_prevalence = fit_values,
+    se = se_values
+  ) %>%
+    mutate(type = "Adjusted")
 }
 
 combine_prevalence <- function(survey_designs) {
@@ -175,6 +153,7 @@ final_combined_df <- combine_prevalence(survey_designs) %>%
   )
 
 # Save results
+saveRDS(survey_designs, file.path(getwd(), "data", "BRFSS_SurveyDesigns.rds"))
 saveRDS(final_combined_df, file.path(getwd(), "data", "BRFSS_Results.rds"))
 
 # Display results
