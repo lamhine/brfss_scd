@@ -109,10 +109,10 @@ table1_imputed <- tbl_svysummary(
 plot_prevalence <- ggplot(
   final_combined_df,
   aes(x = fct_reorder(RACE, weighted_prevalence, .fun = min, .desc = FALSE), 
-      y = weighted_prevalence, group = type)
+      y = weighted_prevalence, group = type, color = fct_reorder(RACE, weighted_prevalence, .fun = min, .desc = FALSE))  # Preserve original color order
 ) +
-  geom_point(aes(shape = type, color = RACE), size = 3, position = position_dodge(width = 0.5)) +
-  geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci, color = RACE), 
+  geom_point(aes(shape = type), size = 3, position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), 
                 width = 0, position = position_dodge(width = 0.5)) +
   labs(
     x = NULL,

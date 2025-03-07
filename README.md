@@ -44,7 +44,7 @@ source("05_visualize_results.R") # Generates tables and plot
 - `BRFSS_Results.rds` → Summarized data ready for plotting (04_analyze_data.R)
 - `BRFSS_Cleaned.rds` → Cleaned dataset (02_clean_data.R)
 - Tables & figures → From 04_analyze_data.R & 05_visualize_results.R
-- `SCD_Prevalence_Plot.png` → Final plot (05_visualize_results.R)
+- `BRFSS_SCD_Prevalence.png` → Final plot (05_visualize_results.R)
 
 ### **Troubleshooting**
 - **Missing BRFSS files?** Ensure `.XPT` files are inside `data/`.
