@@ -152,4 +152,4 @@ plot_prevalence <- ggplot(
 saveRDS(table1_complete, file.path(getwd(), "data", "BRFSS_Table1A_Complete.rds"))
 saveRDS(table1_imputed, file.path(getwd(), "data", "BRFSS_Table1B_Imputed.rds"))
 ggsave(filename = file.path(getwd(), "figures", "BRFSS_SCD_Prevalence.png"),
-       plot = plot_prevalence, width = 8, height = 6, dpi = 300)
+       plot = plot_prevalence, width = 10, height = 5, dpi = 300)
