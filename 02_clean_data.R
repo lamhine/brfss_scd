@@ -125,5 +125,37 @@ df <- df %>%
   filter(!(AGEG5YR %in% c("1", "2", "3", "4", "5", "6"))) %>%
   mutate(AGEG5YR = droplevels(AGEG5YR))
 
+# Ensure categorical variables have correct factor levels before imputation
+df <- df %>%
+  mutate(
+    SEXVAR = factor(SEXVAR, labels = c("Male", "Female")),
+    AGEG5YR = factor(AGEG5YR, labels = c("50-54", "55-59", "60-64", "65-69", "70-74", "75-79", "80+")),
+    MEMLOSS = factor(MEMLOSS, labels = c("Yes", "No"))
+  )
+
+# Define correct labels in alphabetical order
+race_labels <- c(
+  "1" = "White",
+  "2" = "Black",
+  "3" = "AIAN",
+  "4" = "Asian",
+  "5" = "NHPI",
+  "6" = "Other race",
+  "7" = "Multiracial",
+  "8" = "Hispanic"
+)
+
+# Reassign factor levels properly
+df <- df %>%
+  mutate(RACE = factor(RACE, levels = names(race_labels), labels = race_labels))
+
+# Verify the transformation
+print("After modifying RACE:")
+print(str(df$RACE))
+print(table(df$RACE, useNA = "ifany"))
+
+# Save cleaned dataset
+saveRDS(df, file.path(getwd(), "data", "BRFSS_Cleaned.rds"))
+
 # Save cleaned dataset
 saveRDS(df, file = file.path(getwd(), "data", "BRFSS_Cleaned.rds"))

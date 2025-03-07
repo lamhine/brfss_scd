@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This repository contains code for estimating the prevalence of Subjective Cognitive Decline (SCD) using BRFSS data from 2019-2023. The analysis incorporates survey weighting, imputation, and stratification by race/ethnicity.
+This repository contains code for estimating the prevalence of Subjective Cognitive Decline (SCD) using BRFSS data from 2019-2023. The analysis incorporates survey weighting, multiple imputation for missing data, stratification by race/ethnicity, and adjustment for sex and 5-year age groups using predictive marginal standardization.
 Below is a visualization of the estimated prevalence of Subjective Cognitive Decline (SCD) by race/ethnicity:
 
 ![SCD Prevalence Plot](figures/SCD_Prevalence_Plot.png)
@@ -32,13 +32,19 @@ source("01_load_data.R")    # Loads raw BRFSS data
 source("02_clean_data.R")   # Cleans and preprocesses data
 source("03_multiple_imputation.R")  # Handles missing data
 source("04_analyze_data.R") # Runs analysis and estimates prevalence
-source("05_visualize_results.R") # Generates plots
+source("05_visualize_results.R") # Generates tables and plot
 ```
 
 ### **Outputs**
-- `BRFSS_Raw.rds` → Raw combined dataset (01_load_data.R)
+- `filtered_dfs.rds` → Raw combined dataset (01_load_data.R)
+- `BRFSS_Cleaned.rds` → Cleaned dataset (02_clean_data.R)
+- `BRFSS_Imputed.rds` → Imputed dataset with diagnostics (03_multiple_imputation.R)
+- `BRFSS_Imputed_Completed.rds` → Completed imputation list (03_multiple_imputation.R)
+- `BRFSS_SurveyDesigns.rds` → Survey designs for tables (04_analyze_data.R)
+- `BRFSS_Results.rds` → Summarized data ready for plotting (04_analyze_data.R)
 - `BRFSS_Cleaned.rds` → Cleaned dataset (02_clean_data.R)
 - Tables & figures → From 04_analyze_data.R & 05_visualize_results.R
+- `SCD_Prevalence_Plot.png` → Final plot (05_visualize_results.R)
 
 ### **Troubleshooting**
 - **Missing BRFSS files?** Ensure `.XPT` files are inside `data/`.

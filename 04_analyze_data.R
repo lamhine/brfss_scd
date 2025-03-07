@@ -83,8 +83,6 @@ calculate_adjusted_prevalence <- function(design) {
   formula <- as.formula("MEMLOSS ~ RACE + AGEG5YR + SEXVAR")
   fit <- svyglm(formula, design = design, family = quasibinomial())
   
-  print(summary(fit))  # Check model convergence
-  
   # Extract factor levels
   race_levels <- levels(design$variables$RACE)
   age_ref <- levels(design$variables$AGEG5YR)[1]  # Reference category for age
@@ -96,19 +94,41 @@ calculate_adjusted_prevalence <- function(design) {
     SEXVAR = factor(sex_ref, levels = levels(design$variables$SEXVAR))
   )
   
-  print(newdata)  # Verify structure of prediction data
-  
   # Run predictions
-  predicted_prevalence <- predict(fit, newdata = newdata, type = "response", se.fit = TRUE)
+  predicted_race <- predict(fit, newdata = newdata, type = "response", se.fit = TRUE)
   
-  # Extract standard errors correctly
-  fit_values <- as.numeric(predicted_prevalence)  # Extract predicted values
-  se_values <- sqrt(attr(predicted_prevalence, "var"))  # Extract standard errors
+  # Extract values
+  if (is.list(predicted_race)) {
+    weighted_prevalence <- as.numeric(predicted_race$fit)
+    se <- as.numeric(predicted_race$se.fit)
+  } else {
+    weighted_prevalence <- as.numeric(predicted_race)
+    se <- sqrt(attr(predicted_race, "var"))  # Extract standard error
+  }
   
-  tibble(
-    RACE = race_levels,
-    weighted_prevalence = fit_values,
-    se = se_values
+  # Compute a properly weighted overall adjusted prevalence
+  race_sample_sizes <- design$variables %>%
+    group_by(RACE) %>%
+    summarize(N = sum(weights(design)), .groups = "drop")
+  
+  overall_weighted_prevalence <- sum(weighted_prevalence * race_sample_sizes$N) / sum(race_sample_sizes$N)
+  
+  # Compute standard error for overall
+  overall_var <- sum((se^2) * (race_sample_sizes$N / sum(race_sample_sizes$N))^2)
+  overall_se <- sqrt(overall_var)
+  
+  # Create final output
+  bind_rows(
+    tibble(
+      RACE = race_levels,
+      weighted_prevalence = weighted_prevalence,
+      se = se
+    ),
+    tibble(
+      RACE = "Overall",
+      weighted_prevalence = overall_weighted_prevalence,
+      se = overall_se
+    )
   ) %>%
     mutate(type = "Adjusted")
 }
