@@ -22,9 +22,6 @@ source("setup.R")
 imp <- readRDS(file.path(processed_data_dir, "03A_imputed_data.rds"))
 imputed_data <- readRDS(file.path(processed_data_dir, "03B_completed_imputations.rds"))
 
-# Set survey design settings
-options(survey.lonely.psu = "adjust")
-
 # Create survey design objects for each imputed dataset
 survey_designs <- lapply(imputed_data, function(data) {
   data <- data %>% mutate(MEMLOSS = as.numeric(MEMLOSS == "Yes"))  # Ensure correct coding

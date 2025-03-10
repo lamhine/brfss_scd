@@ -7,6 +7,7 @@
 
 # Load required packages
 library(tidyverse)
+library(ggrepel)
 library(survey)
 library(gtsummary)
 library(gt)
@@ -101,102 +102,56 @@ table1_complete <- tbl_svysummary(
 table1_complete
 
 # ---------------------- #
-# TABLE 2: ADJUSTED PREVALENCE
-# ---------------------- #
-
-# Prepare data for Table 2 in wide format
-table2 <- final_combined_df %>%
-  filter(type == "Adjusted") %>%
-  select(RACE, weighted_prevalence, lower_ci, upper_ci) %>%
-  mutate(
-    weighted_prevalence = scales::percent(weighted_prevalence, accuracy = 0.1),
-    lower_ci = scales::percent(lower_ci, accuracy = 0.1),
-    upper_ci = scales::percent(upper_ci, accuracy = 0.1),
-    Estimate = paste0(weighted_prevalence, " (", lower_ci, " – ", upper_ci, ")")
-  ) %>%
-  select(RACE, Estimate) %>%
-  pivot_wider(names_from = RACE, values_from = Estimate) %>%
-  select(`Overall\n(N=546,371)`, everything())  # Move Overall to the first column
-
-# Create Table 2
-table2_gt <- table2 %>%
-  gt() %>%
-  tab_header(
-    title = md("**Table 2: Sex- and Age-Adjusted Prevalence of Subjective Cognitive Decline**"),
-    subtitle = "Weighted prevalence and 95% confidence intervals"
-  ) %>%
-  cols_label(
-    `Overall\n(N=546,371)` = "Overall",
-    `AIAN\n(N=7,278)` = "AIAN",
-    `Asian\n(N=9,216)` = "Asian",
-    `Black\n(N=42,048)` = "Black",
-    `Hispanic\n(N=29,605)` = "Hispanic",
-    `Multiracial\n(N=9,572)` = "Multiracial",
-    `NHPI\n(N=1,520)` = "NHPI",
-    `Other race\n(N=3,691)` = "Other",
-    `White\n(N=443,440)` = "White"
-  ) %>%
-  cols_align(align = "center") %>%
-  tab_options(
-    table.width = pct(100),
-    column_labels.font.weight = "bold"
-  )
-
-# Print table
-table2_gt
-
-# ---------------------- #
-# SAVE TABLES IN A SINGLE DOCX FILE FOR MANUSCRIPT
-# ---------------------- #
-
-# Define output path
-tables_docx_path <- file.path(results_dir, "SCD_Tables.docx")
-
-# 1. Merge Table 1A and Table 1B into a single gtsummary object
-tbl_stack <- tbl_merge(
-  tbls = list(table1_complete, table1_imputed),
-  tab_spanner = c("**Table 1A: Complete Case Analysis**", "**Table 1B: Imputed Data Analysis**")
-)
-
-# 2. Convert to `gt` format and save as Word document
-tbl_stack %>%
-  as_gt() %>%
-  gtsave(tables_docx_path)
-
-# 3. Append Table 2 (which is already a gt object) to the same document
-table2_gt %>%
-  gtsave(tables_docx_path, append = TRUE)
-
-message("Saved tables to: ", tables_docx_path)
-
-
-# ---------------------- #
 # FIGURE 1: ADJUSTED PREVALENCE
 # ---------------------- #
 
-# Create prevalence plot
+# Create prevalence plot with improved labels
 plot_prevalence <- ggplot(
   final_combined_df,
-  aes(x = fct_reorder(RACE, weighted_prevalence, .fun = min, .desc = FALSE), 
-      y = weighted_prevalence, group = type, color = fct_reorder(RACE, weighted_prevalence, .fun = min, .desc = FALSE))  # Preserve original color order
+  aes(
+    x = fct_reorder(RACE, weighted_prevalence, .fun = min, .desc = FALSE), 
+    y = weighted_prevalence, 
+    group = type, 
+    color = fct_reorder(RACE, weighted_prevalence, .fun = min, .desc = FALSE)
+  ) 
 ) +
   geom_point(aes(shape = type), size = 3, position = position_dodge(width = 0.5)) +
   geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), 
                 width = 0, position = position_dodge(width = 0.5)) +
+  
+  # Add repelled text labels with black text and gray connectors
+  geom_text_repel(
+    aes(label = scales::percent(weighted_prevalence, accuracy = 0.1)),
+    position = position_dodge(width = 0.5),  # Align with points
+    size = 4,  # Matches axis font size (~12pt in ggplot)
+    color = "black",  # Ensure labels are black
+    force = 15,  # Increase repelling force
+    box.padding = 0.4,  # More space between text and points
+    segment.color = "gray60",  # Light gray connector lines
+    segment.size = 0.5  # Thin connector lines
+  ) +
+  
+  # Labels
   labs(
     x = NULL,
     y = "Prevalence (%)",
     shape = "Estimate Type"
   ) +
+  
+  # Adjust legend markers
   scale_shape_manual(
     values = c("Crude" = 16, "Adjusted" = 17),
     labels = c("Crude", "Adjusted (sex, age)")
   ) +
+  
+  # Adjust y-axis
   scale_y_continuous(
     limits = c(0.05, 0.25),
     labels = scales::percent_format(accuracy = 1),
     expand = expansion(mult = c(0, 0.05))
   ) +
+  
+  # Adjust legend & theme
   guides(
     shape = guide_legend(order = 1, nrow = 3, byrow = TRUE),
     color = "none"
@@ -215,15 +170,16 @@ plot_prevalence <- ggplot(
     axis.line = element_line(color = "black")
   )
 
+# View plot
+plot_prevalence
+
 # ---------------------- #
 # SAVE FILES TO RESULTS DIRECTORY
 # ---------------------- #
 
 saveRDS(table1_imputed, file.path(results_dir, "table_1A.rds"))
 saveRDS(table1_complete, file.path(results_dir, "table_1B.rds"))
-saveRDS(table2_gt, file.path(results_dir, "table_2.rds"))
 table1_imputed %>% as_gt() %>% gtsave(filename = file.path(results_dir, "table_1A.docx"))
 table1_complete %>% as_gt() %>% gtsave(filename = file.path(results_dir, "table_1B.docx"))
-gtsave(table2_gt, filename = file.path(results_dir, "table_2.docx"))
 ggsave(filename = file.path(results_dir, "figure_1.png"),
        plot = plot_prevalence, width = 12, height = 5, dpi = 300)
