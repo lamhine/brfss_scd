@@ -18,3 +18,9 @@ data/*
 unzipped/
 *.XPT
 .Rproj.user
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore R history files
+.Rhistory

@@ -1,34 +1,23 @@
 # 02_clean_data.R
 # Purpose: Clean and preprocess BRFSS data for SCD prevalence analysis
 
+# ---------------------- #
+# LOAD PACKAGES AND CONFIGURATION
+# ---------------------- #
+
 # Load required packages
 library(tidyverse)
-library(rstudioapi)  # Ensure RProj environment detection
-library(mice)        # Needed later for imputation
 
-# Ensure the working directory is the RStudio Project root
-if (!rstudioapi::isAvailable() || is.null(rstudioapi::getActiveProject())) {
-  stop("ERROR: Please open the RStudio Project (.RProj) before running this script.")
-}
-
-# Load configuration file
+# Load configuration and setup files
 source("config.R")
+source("setup.R")
 
-# Confirm data directory is correctly set
-if (!dir.exists(data_dir)) {
-  stop("ERROR: The data directory does not exist. Please update 'config.R' with the correct path.")
-} else {
-  message("Using data directory: ", data_dir)
-}
-
-# Ensure the 'data' folder exists in the repo before saving outputs
-if (!dir.exists(file.path(getwd(), "data"))) {
-  dir.create(file.path(getwd(), "data"), recursive = TRUE)
-  message("Created missing 'data' directory.")
-}
+# ---------------------- #
+# LOAD AND PROCESS FILTERED DATASET
+# ---------------------- #
 
 # Load the single filtered dataset
-filtered_dfs <- readRDS(file.path(getwd(), "data", "filtered_dfs.rds"))
+filtered_dfs <- readRDS(file.path(processed_data_dir, "01_filtered_data.rds"))
 
 # Convert list of dataframes into a single dataframe, preserving dataset name
 df <- bind_rows(filtered_dfs, .id = "dataset")  
@@ -154,8 +143,10 @@ print("After modifying RACE:")
 print(str(df$RACE))
 print(table(df$RACE, useNA = "ifany"))
 
-# Save cleaned dataset
-saveRDS(df, file.path(getwd(), "data", "BRFSS_Cleaned.rds"))
+# ---------------------- #
+# SAVE FILES TO PROCESSED DATA DIRECTORY
+# ---------------------- #
 
 # Save cleaned dataset
-saveRDS(df, file = file.path(getwd(), "data", "BRFSS_Cleaned.rds"))
+saveRDS(df, file.path(processed_data_dir, "02_cleaned_data.rds"))
+

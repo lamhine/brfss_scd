@@ -1,23 +1,26 @@
 # 04_analyze_data.R
 # Purpose: Analyze BRFSS data for SCD prevalence, applying survey weights
 
+# ---------------------- #
+# LOAD PACKAGES AND CONFIGURATION
+# ---------------------- #
+
 # Load required packages
 library(tidyverse)
 library(survey)
 library(mice)
-library(rstudioapi)
 
-# Ensure the working directory is the RStudio Project root
-if (!rstudioapi::isAvailable() || is.null(rstudioapi::getActiveProject())) {
-  stop("ERROR: Please open the RStudio Project (.RProj) before running this script.")
-}
-
-# Load configuration
+# Load configuration and setup files
 source("config.R")
+source("setup.R")
+
+# ---------------------- #
+# LOAD AND ANALYZE IMPUTED DATASET
+# ---------------------- #
 
 # Load imputed dataset
-imp <- readRDS(file.path(getwd(), "data", "BRFSS_Imputed.rds"))
-imputed_data <- readRDS(file.path(getwd(), "data", "BRFSS_Imputed_Completed.rds"))
+imp <- readRDS(file.path(processed_data_dir, "03A_imputed_data.rds"))
+imputed_data <- readRDS(file.path(processed_data_dir, "03B_completed_imputations.rds"))
 
 # Set survey design settings
 options(survey.lonely.psu = "adjust")
@@ -172,9 +175,13 @@ final_combined_df <- combine_prevalence(survey_designs) %>%
     )
   )
 
+# ---------------------- #
+# SAVE FILES TO PROCESSED DATA DIRECTORY
+# ---------------------- #
+
 # Save results
-saveRDS(survey_designs, file.path(getwd(), "data", "BRFSS_SurveyDesigns.rds"))
-saveRDS(final_combined_df, file.path(getwd(), "data", "BRFSS_Results.rds"))
+saveRDS(survey_designs, file.path(processed_data_dir, "04A_survey_designs.rds"))
+saveRDS(final_combined_df, file.path(processed_data_dir, "04B_summary_results.rds"))
 
 # Display results
 print(final_combined_df)

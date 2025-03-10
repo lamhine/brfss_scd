@@ -1,22 +1,25 @@
 # 03_multiple_imputation.R
 # Purpose: Impute missing data for BRFSS SCD prevalence analysis
 
+# ---------------------- #
+# LOAD PACKAGES AND CONFIGURATION
+# ---------------------- #
+
 # Load required packages
 library(tidyverse)
 library(mice)
 library(future)
-library(rstudioapi)
 
-# Ensure the working directory is the RStudio Project root
-if (!rstudioapi::isAvailable() || is.null(rstudioapi::getActiveProject())) {
-  stop("ERROR: Please open the RStudio Project (.RProj) before running this script.")
-}
-
-# Load configuration
+# Load configuration and setup files
 source("config.R")
+source("setup.R")
+
+# ---------------------- #
+# LOAD AND PROCESS CLEANED DATASET
+# ---------------------- #
 
 # Load cleaned dataset
-df <- readRDS(file.path(getwd(), "data", "BRFSS_Cleaned.rds"))
+df <- readRDS(file.path(processed_data_dir, "02_cleaned_data.rds"))
 
 # Define variables to impute (exclude survey design variables)
 survey_vars <- c("year", "dataset", "STATE", "STSTR", "PSU", "LLCPWT", "weight_adjusted")
@@ -54,9 +57,13 @@ imputed_data <- lapply(imputed_data, function(df_imp) {
   bind_cols(df %>% select(all_of(survey_vars)), df_imp)
 })
 
+# ---------------------- #
+# SAVE FILES TO PROCESSED DATA DIRECTORY
+# ---------------------- #
+
 # Save imputed datasets
-saveRDS(imp, file.path(getwd(), "data", "BRFSS_Imputed.rds"))
-saveRDS(imputed_data, file.path(getwd(), "data", "BRFSS_Imputed_Completed.rds"))
+saveRDS(imp, file.path(processed_data_dir, "03A_imputed_data.rds"))
+saveRDS(imputed_data, file.path(processed_data_dir, "03B_completed_imputations.rds"))
 
 # Print summary of imputations
 print(imp)
