@@ -35,9 +35,13 @@ message("Using processed data directory: ", processed_data_dir)
 message("Using results directory", results_dir)
 
 # Load some commonly used packages (update or comment out if not preferred)
+library(rstudioapi)
 library(tidyverse)
 library(summarytools)
 library(janitor)
 
 # Suppress scientific notation for cleaner output
 options(scipen = 999)
+
+# Set survey design settings
+options(survey.lonely.psu = "adjust")
