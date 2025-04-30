@@ -7,6 +7,7 @@
 
 # Load required packages
 library(tidyverse)
+library(tidycensus)
 library(survey)
 library(mice)
 
@@ -51,8 +52,62 @@ sample_sizes <- combine_sample_sizes(survey_designs)
 sample_sizes <- sample_sizes %>% mutate(RACE = as.character(RACE))
 overall_N <- sum(sample_sizes$N, na.rm = TRUE)
 
-## PREVALENCE CALCULATIONS ##
-calculate_crude_prevalence <- function(design) {
+# ---------------------- #
+# FUNCTIONS AND CALCULATIONS FOR CRUDE BY AGE/SEX (FIGURE 1)
+# ---------------------- #
+
+# Function to calculate crude prevalence stratified by sex and age category
+calc_crude_agesex <- function(design) {
+  svyby(
+    ~MEMLOSS,
+    ~interaction(SEXVAR, AGEG5YR, drop = TRUE),
+    design = design,
+    svymean,
+    na.rm = TRUE
+  ) %>%
+    as_tibble() %>%
+    rename(weighted_prevalence = MEMLOSS, se = se) %>%
+    separate(`interaction(SEXVAR, AGEG5YR, drop = TRUE)`, into = c("SEXVAR", "AGEG5YR"), sep = "\\.") %>%
+    mutate(
+      SEXVAR = factor(SEXVAR, levels = levels(design$variables$SEXVAR)),
+      AGEG5YR = factor(AGEG5YR, levels = levels(design$variables$AGEG5YR)),
+      lower_ci = pmax(0, weighted_prevalence - 1.96 * se),
+      upper_ci = pmin(1, weighted_prevalence + 1.96 * se),
+      type = "Crude"
+    )
+}
+
+# Function to combine age/sex-stratified crude across imputations 
+combine_crude_agesex <- function(survey_designs) {
+  # Apply the calc_crude_agesex function to each imputed dataset
+  all_results <- lapply(survey_designs, calc_crude_agesex)
+  
+  # Combine into one dataframe with an imputation index
+  combined <- bind_rows(all_results, .id = "imputation")
+  
+  # Pool across imputations: mean prevalence and Rubin's Rule for SE
+  pooled <- combined %>%
+    group_by(SEXVAR, AGEG5YR, type) %>%
+    summarize(
+      weighted_prevalence = mean(weighted_prevalence, na.rm = TRUE),
+      se = sqrt(sum(se^2) / n()),  # Simple approximation across M imputations
+      lower_ci = pmax(0, weighted_prevalence - 1.96 * se),
+      upper_ci = pmin(1, weighted_prevalence + 1.96 * se),
+      .groups = "drop"
+    )
+  
+  return(pooled)
+}
+
+# Dataframe of crude results stratified by age and sex (Figure 1)
+final_agesex_df <- combine_crude_agesex(survey_designs)
+
+# ---------------------- #
+# FUNCTIONS AND CALCULATIONS FOR CRUDE AND ADJUSTED BY RACE (FIGURE 2)
+# ---------------------- #
+
+# Function to calculate crude prevalence by race
+calc_crude_race <- function(design) {
   by_race <- svyby(
     ~MEMLOSS,
     ~RACE,
@@ -79,7 +134,8 @@ calculate_crude_prevalence <- function(design) {
     mutate(type = "Crude")
 }
 
-calculate_adjusted_prevalence <- function(design) {
+# Function to calculate age/sex-adjusted prevalence by race
+calc_adj_race <- function(design) {
   formula <- as.formula("MEMLOSS ~ RACE + AGEG5YR + SEXVAR")
   fit <- svyglm(formula, design = design, family = quasibinomial())
   
@@ -133,9 +189,10 @@ calculate_adjusted_prevalence <- function(design) {
     mutate(type = "Adjusted")
 }
 
-combine_prevalence <- function(survey_designs) {
-  crude_results <- lapply(survey_designs, calculate_crude_prevalence)
-  adjusted_results <- lapply(survey_designs, calculate_adjusted_prevalence)
+# Function to combine race-stratified crude + adjusted across imputations 
+combine_race_results <- function(survey_designs) {
+  crude_results <- lapply(survey_designs, calc_crude_race)
+  adjusted_results <- lapply(survey_designs, calc_adj_race)
   
   combined_crude <- bind_rows(crude_results, .id = "imputation") %>%
     group_by(RACE, type) %>%
@@ -160,7 +217,8 @@ combine_prevalence <- function(survey_designs) {
   bind_rows(combined_crude, combined_adjusted)
 }
 
-final_combined_df <- combine_prevalence(survey_designs) %>%
+# Dataframe of crude and adjusted results stratified by race (Figure 2)
+final_race_df <- combine_race_results(survey_designs) %>%
   mutate(RACE = as.character(RACE)) %>%
   left_join(sample_sizes, by = "RACE") %>%
   mutate(
@@ -173,12 +231,78 @@ final_combined_df <- combine_prevalence(survey_designs) %>%
   )
 
 # ---------------------- #
+# FUNCTIONS AND CALCULATIONS FOR ADJUSTED STRATIFIED BY STATE (FIGURE 3)
+# ---------------------- #
+
+# Function to calculate adjusted prevalence among Multiracial adults by state
+calc_adj_state_multiracial <- function(design) {
+  # Filter to Multiracial adults
+  design_mr <- subset(design, RACE == "Multiracial")
+  
+  # Fit model without STATE as a predictor
+  fit <- svyglm(MEMLOSS ~ AGEG5YR + SEXVAR, design = design_mr, family = quasibinomial())
+  
+  # Predict probability of SCD for each person
+  pred_probs <- predict(fit, type = "response")
+  
+  # Add predicted values back into the survey design
+  design_mr$variables$pred <- as.numeric(pred_probs)
+  
+  # Summarize predicted prevalence within each STATE
+  svyby(
+    ~pred,
+    ~STATE,
+    design = design_mr,
+    svymean,
+    keep.names = FALSE,
+    na.rm = TRUE
+  ) %>%
+    as_tibble() %>%
+    rename(
+      weighted_prevalence = pred,
+      se = se
+    )
+}
+
+# Function to combine state-stratified results across imputations 
+combine_adj_state_multiracial <- function(survey_designs) {
+  state_results <- lapply(survey_designs, calc_adj_state_multiracial)
+  pooled <- bind_rows(state_results, .id = "imputation") %>%
+    group_by(STATE) %>%
+    summarize(
+      weighted_prevalence = mean(weighted_prevalence, na.rm = TRUE),
+      se = sqrt(sum(se^2) / n()),
+      lower_ci = pmax(0, weighted_prevalence - 1.96 * se),
+      upper_ci = pmin(1, weighted_prevalence + 1.96 * se),
+      RSE = 100 * se / weighted_prevalence,
+      unstable = any(RSE > 30),
+      .groups = "drop"
+    )
+  return(pooled)
+}
+
+# Dataframe of state-stratified results (Figure 3)
+final_state_df <- combine_adj_state_multiracial(survey_designs)
+
+# Add state names
+final_state_df <- final_state_df %>%
+  mutate(STATE = str_pad(STATE, width = 2, pad = "0")) %>%
+  left_join(
+    fips_codes %>%
+      distinct(state_code, state_name),
+    by = c("STATE" = "state_code")
+  )
+
+# ---------------------- #
 # SAVE FILES TO PROCESSED DATA DIRECTORY
 # ---------------------- #
 
 # Save results
 saveRDS(survey_designs, file.path(processed_data_dir, "04A_survey_designs.rds"))
-saveRDS(final_combined_df, file.path(processed_data_dir, "04B_summary_results.rds"))
+saveRDS(final_race_df, file.path(processed_data_dir, "04B_race_results.rds"))
+saveRDS(final_agesex_df, file.path(processed_data_dir, "04C_agesex_results.rds"))
+saveRDS(final_state_df, file.path(processed_data_dir, "04D_state_results.rds"))
 
 # Display results
-print(final_combined_df)
+print(final_agesex_df)
+print(final_race_df)

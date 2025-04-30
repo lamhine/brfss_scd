@@ -1,14 +1,16 @@
 # 05_visualize_data.R
-# Purpose: Visualize survey-weighted SCD prevalence estimates and create Table 1
+# Purpose: Visualize survey-weighted SCD prevalence estimates and create Tables
 
 # ---------------------- #
 # LOAD PACKAGES AND CONFIGURATION
 # ---------------------- #
 
 # Load required packages
-library(tidyverse)
-library(ggrepel)
 library(survey)
+library(tidyverse)
+library(maps)
+library(usmap)
+library(ggrepel)
 library(gtsummary)
 library(gt)
 
@@ -23,7 +25,9 @@ source("setup.R")
 # Load cleaned dataset, imputed survey designs, and final prevalence table
 df <- readRDS(file.path(processed_data_dir, "02_cleaned_data.rds"))
 survey_designs <- readRDS(file.path(processed_data_dir, "04A_survey_designs.rds"))
-final_combined_df <- readRDS(file.path(processed_data_dir, "04B_summary_results.rds"))
+final_race_df <- readRDS(file.path(processed_data_dir, "04B_race_results.rds"))
+final_agesex_df <- readRDS(file.path(processed_data_dir, "04C_agesex_results.rds"))
+final_state_df <- readRDS(file.path(processed_data_dir, "04D_state_results.rds"))
 
 # ---------------------- #
 # TABLE 1A: IMPUTED DATA
@@ -102,12 +106,62 @@ table1_complete <- tbl_svysummary(
 table1_complete
 
 # ---------------------- #
-# FIGURE 1: ADJUSTED PREVALENCE
+# FIGURE 1: CRUDE PREVALENCE STRATIFIED BY SEX AND AGE GROUP
+# ---------------------- #
+# Create plot of crude prevalence by age and sex
+plot_agesex <- ggplot(
+  final_agesex_df,
+  aes(
+    x = AGEG5YR,
+    y = weighted_prevalence,
+    color = AGEG5YR
+  )
+) +
+  geom_point(size = 3) +
+  geom_errorbar(
+    aes(ymin = lower_ci, ymax = upper_ci),
+    width = 0
+  ) +
+  geom_text_repel(
+    aes(label = scales::percent(weighted_prevalence, accuracy = 0.1)),
+    size = 4,
+    color = "black",
+    force = 15,
+    box.padding = 0.4,
+    segment.color = "gray60",
+    segment.size = 0.5
+  ) +
+  facet_wrap(~SEXVAR, nrow = 1) +
+  labs(
+    x = "Age Group",
+    y = "Prevalence (%)"
+  ) +
+  scale_y_continuous(
+    limits = c(0.05, 0.25),
+    labels = scales::percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  guides(color = "none") +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title.y = element_text(size = 14),
+    strip.text = element_text(size = 14),
+    panel.grid = element_blank(),
+    axis.line = element_line(color = "black")
+  )
+
+# View plot
+plot_agesex
+
+# ---------------------- #
+# FIGURE 2: CRUDE AND ADJUSTED PREVALENCE STRATIFIED BY RACE
 # ---------------------- #
 
 # Create prevalence plot with improved labels
-plot_prevalence <- ggplot(
-  final_combined_df,
+plot_race <- ggplot(
+  final_race_df,
   aes(
     x = fct_reorder(RACE, weighted_prevalence, .fun = min, .desc = FALSE), 
     y = weighted_prevalence, 
@@ -152,26 +206,115 @@ plot_prevalence <- ggplot(
   ) +
   
   # Adjust legend & theme
-  guides(
-    shape = guide_legend(order = 1, nrow = 3, byrow = TRUE),
-    color = "none"
-  ) +
+  # guides(
+  #  shape = guide_legend(order = 1, nrow = 3, byrow = TRUE),
+  #  color = "none"
+  # ) +
+  
+  # No legend for A&D format
+  guides(shape = "none", color = "none") +
+  
   theme_minimal(base_size = 14) +
   theme(
     axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12),
     axis.text.y = element_text(size = 12),
     axis.title.y = element_text(size = 14),
-    legend.position = c(1, 0),
-    legend.justification = c(1, 0),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 12),
-    legend.background = element_blank(),
+    #legend.position = c(1, 0),
+    #legend.justification = c(1, 0),
+    #legend.title = element_text(size = 12),
+    #legend.text = element_text(size = 12),
+    #legend.background = element_blank(),
     panel.grid = element_blank(),
     axis.line = element_line(color = "black")
   )
 
 # View plot
-plot_prevalence
+plot_race
+
+# ---------------------- #
+# FIGURE 3: ADJUSTED PREVALENCE MAP
+# ---------------------- #
+# Step 1: Add 2-letter state codes
+state_abbr_lookup <- tibble(
+  state_name = state.name,
+  state_abbr = state.abb
+) %>%
+  add_row(state_name = "District of Columbia", state_abbr = "DC")
+
+final_state_df_clean <- final_state_df %>%
+  left_join(state_abbr_lookup, by = "state_name") %>%
+  filter(!is.na(state_abbr)) %>%
+  rename(state = state_abbr)  
+
+# Step 2: Plot
+map_plot <- plot_usmap(
+  regions = "states",
+  data = final_state_df_clean,
+  values = "weighted_prevalence"
+) +
+  scale_fill_gradient2(
+    low = "white",
+    mid = "#deebf7",
+    high = "#08519c",
+    midpoint = 0.18,
+    name = "Adjusted SCD\nPrevalence (%)",
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "right",
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) 
+
+# View
+map_plot
+
+# -------------------- #
+# Step 4: Merge map with your prevalence data
+# -------------------- #
+
+map_df <- final_state_df %>%
+  mutate(region = tolower(state_name)) %>%
+  mutate(region = case_when(
+    region == "district of columbia" ~ "district of columbia",
+    region == "puerto rico" ~ "puerto rico",
+    TRUE ~ region
+  )) %>%
+  right_join(full_us_map, by = "region")
+
+# -------------------- #
+# Step 5: Plot!
+# -------------------- #
+
+map_plot <- ggplot(map_df, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = weighted_prevalence), color = "white", size = 0.2) +
+  coord_fixed(1.3) +
+  scale_fill_gradient2(
+    low = "white",
+    mid = "#deebf7",
+    high = "#08519c",
+    midpoint = 0.18,
+    name = "Adjusted SCD Prevalence (%)",
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(
+    title = "Age- and Sex-Adjusted Prevalence of Subjective Cognitive Decline\nAmong Multiracial Adults, BRFSS 2019–2023"
+  )
+
+# View the plot
+map_plot
 
 # ---------------------- #
 # SAVE FILES TO RESULTS DIRECTORY
@@ -181,5 +324,9 @@ saveRDS(table1_imputed, file.path(results_dir, "table_1A.rds"))
 saveRDS(table1_complete, file.path(results_dir, "table_1B.rds"))
 table1_imputed %>% as_gt() %>% gtsave(filename = file.path(results_dir, "table_1A.docx"))
 table1_complete %>% as_gt() %>% gtsave(filename = file.path(results_dir, "table_1B.docx"))
-ggsave(filename = file.path(results_dir, "figure_1.png"),
-       plot = plot_prevalence, width = 12, height = 5, dpi = 300)
+ggsave(filename = file.path(results_dir, "figure_1.pdf"),
+       plot = plot_agesex, width = 12, height = 5, dpi = 1200)
+ggsave(filename = file.path(results_dir, "figure_2.pdf"),
+       plot = plot_race, width = 12, height = 5, dpi = 1200)
+ggsave(filename = file.path(results_dir, "figure_3.pdf"),
+       plot = map_plot, width = 12, height = 5, dpi = 1200)
