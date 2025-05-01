@@ -161,7 +161,7 @@ plot_agesex
 
 # Create prevalence plot with improved labels
 plot_race <- ggplot(
-  final_race_df,
+  mutate(final_race_df, type = factor(type, levels = c("Crude", "Adjusted"))),
   aes(
     x = fct_reorder(RACE, weighted_prevalence, .fun = min, .desc = FALSE), 
     y = weighted_prevalence, 
@@ -206,24 +206,21 @@ plot_race <- ggplot(
   ) +
   
   # Adjust legend & theme
-  # guides(
-  #  shape = guide_legend(order = 1, nrow = 3, byrow = TRUE),
-  #  color = "none"
-  # ) +
-  
-  # No legend for A&D format
-  guides(shape = "none", color = "none") +
+   guides(
+    shape = guide_legend(order = 1, nrow = 3, byrow = TRUE),
+    color = "none"
+   ) +
   
   theme_minimal(base_size = 14) +
   theme(
     axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12),
     axis.text.y = element_text(size = 12),
     axis.title.y = element_text(size = 14),
-    #legend.position = c(1, 0),
-    #legend.justification = c(1, 0),
-    #legend.title = element_text(size = 12),
-    #legend.text = element_text(size = 12),
-    #legend.background = element_blank(),
+    legend.position = c(1, 0),
+    legend.justification = c(1, 0),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12),
+    legend.background = element_blank(),
     panel.grid = element_blank(),
     axis.line = element_line(color = "black")
   )
@@ -234,19 +231,19 @@ plot_race
 # ---------------------- #
 # FIGURE 3: ADJUSTED PREVALENCE MAP
 # ---------------------- #
-# Step 1: Add 2-letter state codes
+# Add 2-letter state codes for joining
 state_abbr_lookup <- tibble(
   state_name = state.name,
-  state_abbr = state.abb
+  state = state.abb  # 'state' is the column name used by plot_usmap()
 ) %>%
-  add_row(state_name = "District of Columbia", state_abbr = "DC")
+  add_row(state_name = "District of Columbia", state = "DC")
 
+# Clean and join data
 final_state_df_clean <- final_state_df %>%
   left_join(state_abbr_lookup, by = "state_name") %>%
-  filter(!is.na(state_abbr)) %>%
-  rename(state = state_abbr)  
+  filter(!is.na(state))  # Remove rows without 2-letter abbreviation
 
-# Step 2: Plot
+# Plot using plot_usmap
 map_plot <- plot_usmap(
   regions = "states",
   data = final_state_df_clean,
@@ -270,50 +267,7 @@ map_plot <- plot_usmap(
     plot.title = element_text(hjust = 0.5)
   ) 
 
-# View
-map_plot
-
-# -------------------- #
-# Step 4: Merge map with your prevalence data
-# -------------------- #
-
-map_df <- final_state_df %>%
-  mutate(region = tolower(state_name)) %>%
-  mutate(region = case_when(
-    region == "district of columbia" ~ "district of columbia",
-    region == "puerto rico" ~ "puerto rico",
-    TRUE ~ region
-  )) %>%
-  right_join(full_us_map, by = "region")
-
-# -------------------- #
-# Step 5: Plot!
-# -------------------- #
-
-map_plot <- ggplot(map_df, aes(x = long, y = lat, group = group)) +
-  geom_polygon(aes(fill = weighted_prevalence), color = "white", size = 0.2) +
-  coord_fixed(1.3) +
-  scale_fill_gradient2(
-    low = "white",
-    mid = "#deebf7",
-    high = "#08519c",
-    midpoint = 0.18,
-    name = "Adjusted SCD Prevalence (%)",
-    labels = scales::percent_format(accuracy = 1)
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    legend.position = "right",
-    plot.title = element_text(hjust = 0.5)
-  ) +
-  labs(
-    title = "Age- and Sex-Adjusted Prevalence of Subjective Cognitive Decline\nAmong Multiracial Adults, BRFSS 2019–2023"
-  )
-
-# View the plot
+# View the map
 map_plot
 
 # ---------------------- #
@@ -324,9 +278,9 @@ saveRDS(table1_imputed, file.path(results_dir, "table_1A.rds"))
 saveRDS(table1_complete, file.path(results_dir, "table_1B.rds"))
 table1_imputed %>% as_gt() %>% gtsave(filename = file.path(results_dir, "table_1A.docx"))
 table1_complete %>% as_gt() %>% gtsave(filename = file.path(results_dir, "table_1B.docx"))
-ggsave(filename = file.path(results_dir, "figure_1.pdf"),
-       plot = plot_agesex, width = 12, height = 5, dpi = 1200)
-ggsave(filename = file.path(results_dir, "figure_2.pdf"),
-       plot = plot_race, width = 12, height = 5, dpi = 1200)
-ggsave(filename = file.path(results_dir, "figure_3.pdf"),
-       plot = map_plot, width = 12, height = 5, dpi = 1200)
+ggsave(filename = file.path(results_dir, "figure_1.eps"),
+       plot = plot_agesex, width = 12, height = 5, device = "eps")
+ggsave(filename = file.path(results_dir, "figure_2.eps"),
+       plot = plot_race, width = 12, height = 5, device = "eps")
+ggsave(filename = file.path(results_dir, "figure_3.eps"),
+       plot = map_plot, width = 12, height = 5, device = "eps")
