@@ -23,7 +23,7 @@ df <- readRDS(file.path(processed_data_dir, "02_cleaned_data.rds"))
 
 # Define variables to impute (exclude survey design variables)
 survey_vars <- c("year", "dataset", "STATE", "STSTR", "PSU", "LLCPWT", "weight_adjusted")
-impute_vars <- setdiff(names(df), survey_vars)
+impute_vars <- setdiff(names(df), c(survey_vars, "RACE"))
 
 # Subset data for imputation
 df_subset <- df %>% select(all_of(impute_vars))
@@ -54,7 +54,7 @@ imputed_data <- complete(imp, action = "all")
 
 # Add back in survey variables
 imputed_data <- lapply(imputed_data, function(df_imp) {
-  bind_cols(df %>% select(all_of(survey_vars)), df_imp)
+  bind_cols(df %>% select(all_of(survey_vars), "RACE"), df_imp)
 })
 
 # ---------------------- #

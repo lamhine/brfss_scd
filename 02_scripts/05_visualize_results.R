@@ -278,9 +278,9 @@ saveRDS(table1_imputed, file.path(results_dir, "table_1A.rds"))
 saveRDS(table1_complete, file.path(results_dir, "table_1B.rds"))
 table1_imputed %>% as_gt() %>% gtsave(filename = file.path(results_dir, "table_1A.docx"))
 table1_complete %>% as_gt() %>% gtsave(filename = file.path(results_dir, "table_1B.docx"))
-ggsave(filename = file.path(results_dir, "figure_1.eps"),
-       plot = plot_agesex, width = 12, height = 5, device = "eps")
-ggsave(filename = file.path(results_dir, "figure_2.eps"),
-       plot = plot_race, width = 12, height = 5, device = "eps")
-ggsave(filename = file.path(results_dir, "figure_3.eps"),
-       plot = map_plot, width = 12, height = 5, device = "eps")
+ggsave(filename = file.path(results_dir, "figure_1.png"),
+       plot = plot_agesex, width = 12, height = 5, device = "png")
+ggsave(filename = file.path(results_dir, "figure_2.png"),
+       plot = plot_race, width = 12, height = 5, device = "png")
+ggsave(filename = file.path(results_dir, "figure_3.png"),
+       plot = map_plot, width = 12, height = 5, device = "png")

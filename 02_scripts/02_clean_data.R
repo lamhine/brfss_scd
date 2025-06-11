@@ -66,6 +66,20 @@ df <- df %>%
     OVWOB = `_RFBMI5`
   )
 
+
+# Define correct labels for RACE variable in alphabetical order
+race_labels <- c(
+  "1" = "White",
+  "2" = "Black",
+  "3" = "AIAN",
+  "4" = "Asian",
+  "5" = "NHPI",
+  "6" = "Other race",
+  "7" = "Multiracial",
+  "8" = "Hispanic", 
+  "Unknown" = "Unknown"
+)
+
 # recode problematic variables
 df <- df %>%
   mutate(
@@ -87,7 +101,16 @@ df <- df %>%
       SMOKER3 == 9 ~ NA_real_,
       TRUE ~ SMOKER3
     ) %>% as.factor(),
-    RACE = na_if(RACE, 9) %>% as.factor(),
+    RACE = case_when(
+      RACE == 9 ~ NA_real_,
+      TRUE ~ RACE
+    ),
+    RACE = as.character(RACE),
+    RACE = case_when(
+      RACE %in% names(race_labels) ~ RACE,
+      is.na(RACE) ~ "Unknown",
+      TRUE ~ RACE
+    ),
     INCOME = case_when(
       INCOME %in% c(77, 99) ~ NA_real_, 
       INCOME %in% c(8, 9, 10, 11) ~ 8,  # Collapsing categories
@@ -122,24 +145,11 @@ df <- df %>%
     MEMLOSS = factor(MEMLOSS, labels = c("Yes", "No"))
   )
 
-# Define correct labels in alphabetical order
-race_labels <- c(
-  "1" = "White",
-  "2" = "Black",
-  "3" = "AIAN",
-  "4" = "Asian",
-  "5" = "NHPI",
-  "6" = "Other race",
-  "7" = "Multiracial",
-  "8" = "Hispanic"
-)
-
 # Reassign factor levels properly
 df <- df %>%
   mutate(RACE = factor(RACE, levels = names(race_labels), labels = race_labels))
 
-# Verify the transformation
-print("After modifying RACE:")
+# Verify 
 print(str(df$RACE))
 print(table(df$RACE, useNA = "ifany"))
 
