@@ -137,7 +137,7 @@ plot_agesex <- ggplot(
     y = "Prevalence (%)"
   ) +
   scale_y_continuous(
-    limits = c(0.05, 0.25),
+    limits = c(0.05, 0.20),
     labels = scales::percent_format(accuracy = 1),
     expand = expansion(mult = c(0, 0.05))
   ) +
