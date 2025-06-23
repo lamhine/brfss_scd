@@ -208,7 +208,7 @@ plot_agesexrace <- ggplot(
 plot_agesexrace
 
 # ---------------------- #
-# FIGURE 2: CRUDE AND ADJUSTED PREVALENCE STRATIFIED BY RACE
+# FIGURE 2A: CRUDE AND ADJUSTED PREVALENCE STRATIFIED BY RACE
 # ---------------------- #
 
 # Create prevalence plot with improved labels
@@ -281,7 +281,7 @@ plot_race <- ggplot(
 plot_race
 
 # ---------------------- #
-# FIGURE 3B: TIME SERIES AND POOLED PLOT TOGETHER
+# FIGURE 2B: TIME SERIES AND POOLED PLOT TOGETHER
 # ---------------------- #
 pooled_race_df <- final_race_df %>%
   filter(type == "Adjusted") %>%
@@ -429,7 +429,9 @@ ggsave(filename = file.path(results_dir, "figure_1A.pdf"),
        plot = plot_agesex, width = 12, height = 5, device = "pdf")
 ggsave(filename = file.path(results_dir, "figure_1B.pdf"),
        plot = plot_agesexrace, width = 16, height = 12, device = "pdf")
-ggsave(filename = file.path(results_dir, "figure_2.pdf"),
+ggsave(filename = file.path(results_dir, "figure_2A.pdf"),
        plot = plot_race, width = 12, height = 5, device = "pdf")
+ggsave(filename = file.path(results_dir, "figure_2B.pdf"),
+       plot = plot_combined, width = 12, height = 5, device = "pdf")
 ggsave(filename = file.path(results_dir, "figure_3.pdf"),
        plot = map_plot, width = 12, height = 5, device = "pdf")
