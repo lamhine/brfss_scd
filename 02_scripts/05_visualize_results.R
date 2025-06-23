@@ -113,7 +113,7 @@ table1_complete
 # ---------------------- #
 # Create plot of crude prevalence by age and sex
 plot_agesex <- ggplot(
-  final_agesex_df,
+  mutate(final_agesex_df, SEXVAR = factor(SEXVAR, levels = c("Female", "Male"))),
   aes(
     x = AGEG5YR,
     y = weighted_prevalence,
