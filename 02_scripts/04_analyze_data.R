@@ -155,6 +155,23 @@ final_agesexrace_df <- combine_crude_agesexrace(survey_designs) %>%
     facet_label = paste(RACE, SEXVAR, sep = " ")
   )
 
+# Ensure facet_label is ordered: Feale labels first, then Male
+facet_levels <- c(
+  "AIAN Female", "Asian Female", "Black Female", "Hispanic Female",
+  "Multiracial Female", "NHPI Female", "White Female",
+  "Other race Female", "Unknown Female",
+  "AIAN Male", "Asian Male", "Black Male", "Hispanic Male",
+  "Multiracial Male", "NHPI Male", "White Male",
+  "Other race Male", "Unknown Male"
+)
+
+# Set facet ordering
+final_agesexrace_df <- final_agesexrace_df %>%
+  mutate(
+    facet_label = paste(RACE, SEXVAR, sep = " "),
+    facet_label = factor(facet_label, levels = facet_levels)
+  )
+
 # ---------------------- #
 # FUNCTIONS AND CALCULATIONS FOR CRUDE AND ADJUSTED BY RACE (FIGURE 2A)
 # ---------------------- #

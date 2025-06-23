@@ -11,6 +11,8 @@ library(tidyverse)
 library(maps)
 library(usmap)
 library(ggrepel)
+library(ggforce)
+library(patchwork)
 library(gtsummary)
 library(gt)
 
@@ -125,7 +127,7 @@ plot_agesex <- ggplot(
   ) +
   geom_text_repel(
     aes(label = scales::percent(weighted_prevalence, accuracy = 0.1)),
-    size = 4,
+    size = 3,
     color = "black",
     force = 15,
     box.padding = 0.4,
@@ -138,17 +140,20 @@ plot_agesex <- ggplot(
     y = "Prevalence (%)"
   ) +
   scale_y_continuous(
-    limits = c(0.05, 0.20),
+    limits = c(0.1, 0.2),
     labels = scales::percent_format(accuracy = 1),
     expand = expansion(mult = c(0, 0.05))
   ) +
   guides(color = "none") +
-  theme_minimal(base_size = 14) +
   theme(
-    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12),
-    axis.text.y = element_text(size = 12),
-    axis.title.y = element_text(size = 14),
-    strip.text = element_text(size = 14),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 10),
+    axis.text.y = element_text(size = 10),
+    axis.title.y = element_text(size = 12),
+    legend.position = c(1, 0),
+    legend.justification = c(1, 0),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.background = element_blank(),
     panel.grid = element_blank(),
     axis.line = element_line(color = "black")
   )
@@ -157,55 +162,87 @@ plot_agesex <- ggplot(
 plot_agesex
 
 # ---------------------- #
-# FIGURE 1B: CRUDE PREVALENCE STRATIFIED BY SEX AND AGE GROUP
+# FIGURE 1B: CRUDE PREVALENCE STRATIFIED BY SEX, AGE GROUP, RACE
 # ---------------------- #
 
-# Create plot of crude prevalence by age and sex
-plot_agesexrace <- ggplot(
-  final_agesexrace_df,
-  aes(
-    x = AGEG5YR,
-    y = weighted_prevalence,
-    color = AGEG5YR
-  )
+# Create female only age/race stratified plot
+plot_female <- ggplot(
+  final_agesexrace_df %>% filter(SEXVAR == "Female"),
+  aes(x = AGEG5YR, y = weighted_prevalence, color = AGEG5YR)
 ) +
   geom_point(size = 3) +
-  geom_errorbar(
-    aes(ymin = lower_ci, ymax = upper_ci),
-    width = 0
-  ) +
+  geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), width = 0) +
   geom_text_repel(
     aes(label = scales::percent(weighted_prevalence, accuracy = 0.1)),
-    size = 4,
-    color = "black",
-    force = 15,
-    box.padding = 0.4,
-    segment.color = "gray60",
-    segment.size = 0.5
+    size = 3, color = "black", force = 15, box.padding = 0.4,
+    segment.color = "gray60", segment.size = 0.5
   ) +
   facet_wrap(~facet_label, nrow = 3) +
-  labs(
-    x = "Age Group",
-    y = "Prevalence (%)"
-  ) +
+  labs(x = "Age Group", y = "Prevalence (%)") +
   scale_y_continuous(
-#    limits = c(0.05, 0.20),
+    limits = c(0, 0.6),
     labels = scales::percent_format(accuracy = 1),
     expand = expansion(mult = c(0, 0.05))
   ) +
   guides(color = "none") +
-  #theme_minimal(base_size = 14) +
   theme(
-    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12),
-    axis.text.y = element_text(size = 12),
-    axis.title.y = element_text(size = 14),
-    strip.text = element_text(size = 14),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 8),
+    axis.text.y = element_text(size = 10),
+    axis.title.y = element_text(size = 12),
+    legend.position = c(1, 0),
+    legend.justification = c(1, 0),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.background = element_blank(),
     panel.grid = element_blank(),
     axis.line = element_line(color = "black")
   )
 
+# Create male only age/race stratified plot
+plot_male <- ggplot(
+  final_agesexrace_df %>% filter(SEXVAR == "Male"),
+  aes(x = AGEG5YR, y = weighted_prevalence, color = AGEG5YR)
+) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), width = 0) +
+  geom_text_repel(
+    aes(label = scales::percent(weighted_prevalence, accuracy = 0.1)),
+    size = 3, color = "black", force = 15, box.padding = 0.4,
+    segment.color = "gray60", segment.size = 0.5
+  ) +
+  facet_wrap(~facet_label, nrow = 3) +
+  labs(x = "Age Group") +
+  scale_y_continuous(
+    limits = c(0, 0.6),
+    labels = scales::percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  guides(color = "none") +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 8),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.position = c(1, 0),
+    legend.justification = c(1, 0),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.background = element_blank(),
+    panel.grid = element_blank(),
+    axis.line = element_line(color = "black")
+  )
+
+# Combine female and male plots
+plot_agesexrace <- plot_female + plot_male +
+  plot_layout(ncol = 2, widths = c(1, 1)) &
+  theme(legend.position = "none")
+
+# Combine plots 1A and 1B
+plot_agesexracecombined <- plot_agesex / plot_agesexrace +
+  plot_layout(heights = c(1, 2)) 
+
 # View plot
-plot_agesexrace
+plot_agesexracecombined
 
 # ---------------------- #
 # FIGURE 2A: CRUDE AND ADJUSTED PREVALENCE STRATIFIED BY RACE
@@ -308,7 +345,7 @@ plot_time <- ggplot(race_year_preds, aes(x = year, y = predicted_prob, color = R
   geom_line(linewidth = 1) +
   geom_point(size = 2) +
   geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci, fill = RACE), alpha = 0.2, color = NA) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, NA)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0.05, 0.25)) +
   labs(
     x = "Year",
     y = "Age- and Sex-Adjusted Prevalence",
@@ -336,8 +373,6 @@ pooled_race_df <- pooled_race_df %>%
   mutate(x_pos = factor(RACE, levels = RACE))  # for plotting left-to-right
 
 # Create the ordered pooled prevalence plot
-library(ggrepel)
-
 plot_overall_ordered <- ggplot(pooled_race_df, aes(x = fct_reorder(RACE, weighted_prevalence), y = weighted_prevalence)) +
   geom_point(aes(color = RACE), size = 3) +
   geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci, color = RACE), width = 0.1) +
@@ -351,7 +386,9 @@ plot_overall_ordered <- ggplot(pooled_race_df, aes(x = fct_reorder(RACE, weighte
     segment.size = 0.4,
     show.legend = FALSE
   ) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_y_continuous(
+    limits = c(0.05, 0.25),
+    labels = scales::percent_format(accuracy = 1)) +
   labs(x = "Overall", y = NULL, color = "Race or Ethnicity") +
   guides(color = guide_legend(reverse = TRUE)) +
   theme_minimal(base_size = 13) +
@@ -428,7 +465,7 @@ table1_complete %>% as_gt() %>% gtsave(filename = file.path(results_dir, "table_
 ggsave(filename = file.path(results_dir, "figure_1A.pdf"),
        plot = plot_agesex, width = 12, height = 5, device = "pdf")
 ggsave(filename = file.path(results_dir, "figure_1B.pdf"),
-       plot = plot_agesexrace, width = 16, height = 12, device = "pdf")
+       plot = plot_agesexracecombined, width = 16, height = 12, device = "pdf")
 ggsave(filename = file.path(results_dir, "figure_2A.pdf"),
        plot = plot_race, width = 12, height = 5, device = "pdf")
 ggsave(filename = file.path(results_dir, "figure_2B.pdf"),
