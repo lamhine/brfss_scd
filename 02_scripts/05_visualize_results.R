@@ -140,7 +140,7 @@ plot_agesex <- ggplot(
     y = "Prevalence (%)"
   ) +
   scale_y_continuous(
-    limits = c(0.1, 0.2),
+    limits = c(0.08, 0.2),
     labels = scales::percent_format(accuracy = 1),
     expand = expansion(mult = c(0, 0.05))
   ) +
@@ -337,15 +337,14 @@ race_order <- c(
   "AIAN"
 )
 
-race_year_preds <- race_year_preds %>%
+race_year_df <- race_year_df %>%
   mutate(RACE = factor(RACE, levels = race_order))
 
 # Create the time series plot
-plot_time <- ggplot(race_year_preds, aes(x = year, y = predicted_prob, color = RACE)) +
+plot_time <- ggplot(race_year_df, aes(x = year, y = predicted_prob, color = RACE)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2) +
-  geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci, fill = RACE), alpha = 0.2, color = NA) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0.05, 0.25)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 0.25)) +
   labs(
     x = "Year",
     y = "Age- and Sex-Adjusted Prevalence",

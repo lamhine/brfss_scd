@@ -304,63 +304,87 @@ final_race_df <- combine_race_results(survey_designs) %>%
 # FUNCTIONS AND CALCULATIONS FOR TIME SERIES AND POOLED BY RACE (FIGURE 2B)
 # ---------------------- #
 
-race_year_preds <- purrr::map_dfr(seq_along(survey_designs), function(i) {
+race_year_df <- purrr::map_dfr(seq_along(survey_designs), function(i) {
   design <- survey_designs[[i]]
   df <- design$variables
-  years <- unique(df$year)
+  years <- sort(unique(df$year))
   
   purrr::map_dfr(years, function(yr) {
     this_design <- subset(design, year == yr)
     
-    # Drop unused RACE levels
-    observed_race_levels <- levels(droplevels(this_design$variables$RACE))
+    # observed race levels in this year (drop unused)
+    race_levels <- levels(droplevels(this_design$variables$RACE))
     
-    newdata <- expand.grid(
-      AGEG5YR = levels(this_design$variables$AGEG5YR),
-      SEXVAR = levels(this_design$variables$SEXVAR),
-      RACE = observed_race_levels
+    # reference levels (match calc_adj_race() logic)
+    age_ref <- levels(this_design$variables$AGEG5YR)[1]
+    sex_ref <- levels(this_design$variables$SEXVAR)[1]
+    
+    # model with RACE + AGE + SEX (same as calc_adj_race)
+    fit <- svyglm(MEMLOSS ~ RACE + AGEG5YR + SEXVAR,
+                  design = this_design, family = quasibinomial())
+    
+    # predict for each race at reference age/sex
+    newdata <- expand_grid(
+      RACE    = factor(race_levels, levels = race_levels),
+      AGEG5YR = factor(age_ref, levels = levels(this_design$variables$AGEG5YR)),
+      SEXVAR  = factor(sex_ref, levels = levels(this_design$variables$SEXVAR))
     )
     
-    # Fit model
-    formula <- MEMLOSS ~ AGEG5YR + SEXVAR + RACE
-    model <- svyglm(formula, design = this_design, family = quasibinomial())
-    
-    # Predict
-    predicted <- predict(model, newdata = newdata, type = "response", se.fit = TRUE)
-    
-    if (is.list(predicted)) {
-      predicted_prob <- predicted$fit
-      se <- predicted$se.fit
+    pred <- predict(fit, newdata = newdata, type = "response", se.fit = TRUE)
+    if (is.list(pred)) {
+      fit_r <- as.numeric(pred$fit)
+      se_r  <- as.numeric(pred$se.fit)
     } else {
-      predicted_prob <- as.numeric(predicted)
-      se <- sqrt(attr(predicted, "var"))
+      fit_r <- as.numeric(pred)
+      se_r  <- sqrt(attr(pred, "var"))
     }
     
-    cbind(newdata,
-          predicted_prob = predicted_prob,
-          se = se) %>%
-      as_tibble() %>%
-      group_by(RACE) %>%
-      summarize(
-        predicted_prob = mean(predicted_prob),
-        se = sqrt(mean(se^2) / n()),
-        year = yr,
-        .groups = "drop"
-      ) %>%
+    # survey-weight totals by race (within this year), used to weight "Overall"
+    race_wts <- this_design$variables |>
+      dplyr::group_by(RACE) |>
+      dplyr::summarize(Nw = sum(weights(this_design)), .groups = "drop") |>
+      dplyr::filter(RACE %in% race_levels) |>
+      dplyr::arrange(factor(RACE, levels = race_levels))
+    
+    # race-specific rows
+    race_rows <- tibble(
+      RACE = factor(race_levels, levels = race_levels),
+      predicted_prob = fit_r,
+      se = se_r,
+      year = yr
+    ) |>
       mutate(
-        lower_ci = predicted_prob - 1.96 * se,
-        upper_ci = predicted_prob + 1.96 * se,
+        lower_ci = pmax(0, predicted_prob - 1.96 * se),
+        upper_ci = pmin(1, predicted_prob + 1.96 * se),
         imputation = i
       )
+    
+    # Overall = weighted mean of race-specific predictions by survey weights
+    w <- race_wts$Nw
+    w <- w / sum(w)
+    overall_prob <- sum(fit_r * w)
+    overall_se   <- sqrt(sum((se_r^2) * (w^2)))  # delta-method approx
+    
+    overall_row <- tibble(
+      RACE = factor("Overall", levels = c(race_levels, "Overall")),
+      predicted_prob = overall_prob,
+      se = overall_se,
+      year = yr,
+      lower_ci = pmax(0, overall_prob - 1.96 * overall_se),
+      upper_ci = pmin(1, overall_prob + 1.96 * overall_se),
+      imputation = i
+    )
+    
+    bind_rows(race_rows, overall_row)
   })
-}) %>%
-  group_by(RACE, year) %>%
-  summarize(
-    predicted_prob = mean(predicted_prob),
-    se = sqrt(mean(se^2) / n()),
-    lower_ci = predicted_prob - 1.96 * se,
-    upper_ci = predicted_prob + 1.96 * se,
-    .groups = "drop"
+}) |>
+  dplyr::group_by(RACE, year) |>
+  dplyr::summarize(
+    predicted_prob = mean(predicted_prob, na.rm = TRUE),
+    se             = sqrt(sum(se^2) / n()),
+    lower_ci       = pmax(0, predicted_prob - 1.96 * se),
+    upper_ci       = pmin(1, predicted_prob + 1.96 * se),
+    .groups        = "drop"
   )
 
 
@@ -436,8 +460,5 @@ saveRDS(survey_designs, file.path(processed_data_dir, "04A_survey_designs.rds"))
 saveRDS(final_race_df, file.path(processed_data_dir, "04B_race_results.rds"))
 saveRDS(final_agesex_df, file.path(processed_data_dir, "04C_agesex_results.rds"))
 saveRDS(final_agesexrace_df, file.path(processed_data_dir, "04D_agesexrace_results.rds"))
+saveRDS(race_year_df,  file.path(processed_data_dir, "04F_race_year_results.rds"))
 saveRDS(final_state_df, file.path(processed_data_dir, "04E_state_results.rds"))
-
-# Display results
-print(final_agesex_df)
-print(final_race_df)

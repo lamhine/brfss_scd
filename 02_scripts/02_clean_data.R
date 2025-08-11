@@ -134,14 +134,14 @@ df <- df %>%
 
 # Remove participants under age 50 and drop unused factor levels
 df <- df %>%
-  filter(!(AGEG5YR %in% c("1", "2", "3", "4", "5", "6"))) %>%
+  filter(!(AGEG5YR %in% c("1", "2", "3", "4", "5"))) %>%
   mutate(AGEG5YR = droplevels(AGEG5YR))
 
 # Ensure categorical variables have correct factor levels before imputation
 df <- df %>%
   mutate(
     SEXVAR = factor(SEXVAR, labels = c("Male", "Female")),
-    AGEG5YR = factor(AGEG5YR, labels = c("50-54", "55-59", "60-64", "65-69", "70-74", "75-79", "80+")),
+    AGEG5YR = factor(AGEG5YR, labels = c("45-49", "50-54", "55-59", "60-64", "65-69", "70-74", "75-79", "80+")),
     MEMLOSS = factor(MEMLOSS, labels = c("Yes", "No"))
   )
 
