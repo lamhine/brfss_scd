@@ -30,6 +30,7 @@ survey_designs <- readRDS(file.path(processed_data_dir, "04A_survey_designs.rds"
 final_race_df <- readRDS(file.path(processed_data_dir, "04B_race_results.rds"))
 final_agesex_df <- readRDS(file.path(processed_data_dir, "04C_agesex_results.rds"))
 final_agesexrace_df <- readRDS(file.path(processed_data_dir, "04D_agesexrace_results.rds"))
+race_year_df <- readRDS(file.path(processed_data_dir, "04F_race_year_results.rds"))
 final_state_df <- readRDS(file.path(processed_data_dir, "04E_state_results.rds"))
 
 # ---------------------- #
@@ -96,11 +97,14 @@ table1_complete <- tbl_svysummary(
   type = list(MEMLOSS ~ "categorical"),
   digits = all_categorical() ~ c(0, 1),
   missing = "ifany",
-  missing_stat = "{N_miss_unweighted} ({p_miss_unweighted}%)",
+  missing_stat = "{N_miss_unweighted} ({style_number(as.numeric(p_miss_unweighted), digits = 1)}%)",
   missing_text = "Missing"
 ) %>%
   add_overall() %>%
-  modify_header(label = "**Characteristic**", all_stat_cols() ~ "**{level}**, N = {n_unweighted} ({style_percent(p)}%)") %>%
+  modify_header(
+    label ~ "**Characteristic**",
+    all_stat_cols() ~ "**{level}**, N = {n_unweighted} ({style_number(p, digits = 1)}%)"
+  ) %>%
   modify_spanning_header(all_stat_cols() ~ "**Race/Ethnicity**") %>%
   modify_caption("Table 1A: Unweighted N and Weighted Percentages for Key Demographics") %>%
   bold_labels()
@@ -410,6 +414,61 @@ plot_combined <- plot_time + plot_overall_ordered +
 # View the plot
 plot_combined
 
+# ---------------------- #
+# TABLE 2: PREVALENCE BY RACE
+# ---------------------- # 
+table2 <- final_race_df %>%
+  # clean labels, map to display names, drop "Overall"
+  mutate(
+    RACE_short = sub("\\n\\(N=.*\\)$", "", RACE),
+    Race = case_when(
+      RACE_short == "AIAN"        ~ "American Indian or Alaska Native",
+      RACE_short == "Asian"       ~ "Asian",
+      RACE_short == "Black"       ~ "Black",
+      RACE_short == "Hispanic"    ~ "Hispanic",
+      RACE_short == "Multiracial" ~ "Multiracial",
+      RACE_short == "NHPI"        ~ "Native Hawaiian or Pacific Islander",
+      RACE_short == "White"       ~ "White",
+      RACE_short == "Other race"  ~ "Other race",
+      RACE_short == "Unknown"     ~ "Unknown race",
+      TRUE                        ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(Race)) %>%
+  # format as 10.5% (9.8%–11.1%)
+  mutate(value = sprintf("%.1f%% (%.1f%%–%.1f%%)",
+                         100 * weighted_prevalence,
+                         100 * lower_ci,
+                         100 * upper_ci)) %>%
+  select(Race, type, value) %>%
+  pivot_wider(names_from = type, values_from = value) %>%
+  mutate(
+    Race = factor(
+      Race,
+      levels = c(
+        "American Indian or Alaska Native",
+        "Asian",
+        "Black",
+        "Hispanic",
+        "Multiracial",
+        "Native Hawaiian or Pacific Islander",
+        "White",
+        "Other race",
+        "Unknown race"
+      )
+    )
+  ) %>%
+  arrange(Race) %>%
+  flextable::flextable() %>%
+  flextable::set_header_labels(
+    Race = "Race/Ethnicity",
+    Crude = "Crude (95% CI)",
+    Adjusted = "Adjusted (95% CI)"
+  ) %>%
+  flextable::align(j = c("Crude", "Adjusted"), align = "center", part = "all") %>%
+  flextable::bold(j = "Race", bold = TRUE, part = "body") %>%
+  flextable::autofit()
+
 
 # ---------------------- #
 # FIGURE 3: ADJUSTED PREVALENCE MAP
@@ -469,5 +528,6 @@ ggsave(filename = file.path(results_dir, "figure_2A.pdf"),
        plot = plot_race, width = 12, height = 5, device = "pdf")
 ggsave(filename = file.path(results_dir, "figure_2B.pdf"),
        plot = plot_combined, width = 12, height = 5, device = "pdf")
+table2 %>% flextable::save_as_docx(path = file.path(results_dir, "table2.docx"))
 ggsave(filename = file.path(results_dir, "figure_3.pdf"),
        plot = map_plot, width = 12, height = 5, device = "pdf")
